@@ -1,0 +1,19 @@
+{
+  "name": "script-util",
+  "version": "1.0.0",
+  "description": "Utilities for Bun-powered scripts.",
+  "author": "Joost Lubach",
+  "license": "MIT",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.20",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "chalk": "^3.0",
+    "lodash": "^4.17.21"
+  }
+}
