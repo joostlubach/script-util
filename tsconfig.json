@@ -20,6 +20,7 @@
     "forceConsistentCasingInFileNames": true,
 
     "lib": ["ESNext"],
+    "types": ["bun-types"]
   },
   "include": [
     "src"

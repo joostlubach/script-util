@@ -49,15 +49,18 @@ export function createShell(options: ShellOptions = {}): Shell {
     return promise
   }
 
-  Object.assign($$, $)
+  $$.braces = $.braces
+  $$.escape = $.escape
+  $$.env = $.env
+  $$.cwd = $.cwd
+  $$.nothrow = $.nothrow
+  $$.throws = $.throws
 
-  Object.assign($$, {
-    verbose: (verbose?: boolean) => {
-      if (verbose != null) {
-        $verbose = verbose
-      } else {
-        return $verbose
-      }
+  $$.verbose = ((verbose?: boolean) => {
+    if (verbose != null) {
+      $verbose = verbose
+    } else {
+      return $verbose
     }
   })
 
