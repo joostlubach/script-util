@@ -1,6 +1,5 @@
 import { $ } from 'bun'
 import chalk from 'chalk'
-
 import { Spinner } from './Spinner'
 
 export function createShell(options: ShellOptions = {}): Shell {
@@ -24,14 +23,14 @@ export function createShell(options: ShellOptions = {}): Shell {
         return orig_then.call(
           promise,
           output => {
-            spinner?.stop();
+            spinner?.stop()
             if ($verbose) {
-              logShellOutput(output);
+              logShellOutput(output)
             }
             return onfulfilled != null ? onfulfilled(output) : output
           },
           error => {
-            spinner?.stop();
+            spinner?.stop()
 
             if (!commandLogged) {
               process.stderr.write(chalk`{red ⨉} Shell command failed:\n`)
@@ -39,11 +38,11 @@ export function createShell(options: ShellOptions = {}): Shell {
             }
 
             const output = error instanceof $.ShellError ? error : null
-            logShellOutput(output);
+            logShellOutput(output)
             process.exit(1)
-          }
+          },
         )
-      }
+      },
     })
 
     return promise
