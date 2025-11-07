@@ -1,6 +1,9 @@
 import { $ } from 'bun'
 import chalk from 'chalk'
+import { isPlainObject } from 'ytil'
+
 import { Spinner } from './Spinner'
+import { createSSHShell, SSHShell, SSHShellOptions } from './ssh'
 
 export function createShell(options: ShellOptions = {}): Shell {
   let $verbose = options.verbose ?? false
@@ -63,12 +66,16 @@ export function createShell(options: ShellOptions = {}): Shell {
     }
   })
 
+  $$.ssh = createSSHShell.bind(null, $$ as Shell)
+  
   return $$ as Shell
 }
 
 export type Shell = typeof $ & {
   verbose(verbose: boolean): void
   verbose(): boolean
+
+  ssh(remote: string, options?: SSHShellOptions): SSHShell
 }
 
 function logShellCommand(parts: TemplateStringsArray, expressions: Bun.ShellExpression[]) {
@@ -94,16 +101,27 @@ function logShellOutput(output: $.ShellOutput | null) {
 
 function buildCommand(parts: TemplateStringsArray, expressions: Bun.ShellExpression[]) {
   let out: string = ''
+
+  const fmt = (expr: unknown): string | undefined => {
+    if (isPlainObject(expr) && 'raw' in expr && typeof expr.raw === 'string') {
+      return expr.raw
+    } else if (typeof expr === 'string' || typeof expr === 'number') {
+      return $.escape(expr.toString())
+    } else if (typeof expr === 'boolean') {
+      return expr ? 'true' : 'false'
+    } else if (Array.isArray(expr)) {
+      return expr.map(fmt).join(' ')
+    } else {
+      return `${expr}`
+    }
+  }
+
   for (let i = 0; i < parts.length; i++) {
-    out += parts[i]
+    out += parts[i].replace(/\s+/g, ' ')
     if (i < expressions.length) {
-      const expr = expressions[i]
-      if (typeof expr === 'string' || typeof expr === 'number') {
-        out += `'${expr.toString().replace(/'/g, `'\\''`)}'`
-      } else if (typeof expr === 'boolean') {
-        out += expr ? 'true' : 'false'
-      } else {
-        out += `${expr}`
+      const arg = fmt(expressions[i])
+      if (arg != null) {
+        out += arg.trim().replace(/^\s+|\s+$/, ' ')
       }
     }
   }

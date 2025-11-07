@@ -1,5 +1,3 @@
-
-
 export class Spinner {
   private timer: NodeJS.Timeout | null = null
   private frames = ['-', '\\', '|', '/']

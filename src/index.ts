@@ -1,3 +1,5 @@
 export * from './Spinner'
 export * from './cleanup'
+export * from './rsync'
 export * from './shell'
+export * from './ssh'
