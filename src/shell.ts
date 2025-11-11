@@ -67,6 +67,11 @@ export function createShell(options: ShellOptions = {}): Shell {
   })
 
   $$.ssh = createSSHShell.bind(null, $$ as Shell)
+
+  $$.test = async function (strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]) {
+    const {exitCode} = await $$(strings, ...expressions).nothrow()
+    return exitCode === 0
+  }
   
   return $$ as Shell
 }
@@ -76,6 +81,7 @@ export type Shell = typeof $ & {
   verbose(): boolean
 
   ssh(remote: string, options?: SSHShellOptions): SSHShell
+  test(parts: TemplateStringsArray, ...expressions: Bun.ShellExpression[]): Promise<boolean>
 }
 
 function logShellCommand(parts: TemplateStringsArray, expressions: Bun.ShellExpression[]) {

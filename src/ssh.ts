@@ -11,7 +11,7 @@ export function createSSHShell(
   let defaultEnv: EnvMap = {}
   let defaultCWD: string | undefined = undefined
 
-  const shell = ((strings: TemplateStringsArray, ...exprs: any[]) => {
+  const $$ = ((strings: TemplateStringsArray, ...exprs: any[]) => {
     const parts = { strings, exprs }
 
     let env: EnvMap = {...defaultEnv}
@@ -65,7 +65,7 @@ export function createSSHShell(
     }
 
     // Make result thenable / promise-like so it's awaitable and also chainable with .withEnv/.withCwd
-    const promise: Bun.$.ShellPromise = {
+    const promise: SSHShellPromise = {
 
       // Options & flags
 
@@ -125,21 +125,43 @@ export function createSSHShell(
     return promise
   }) as SSHShell
 
-  shell.env = function (value?: EnvMap) {
+  $$.env = function (value?: EnvMap) {
     defaultEnv = {...defaultEnv, ...value}
     return this
   }
-  shell.cwd = function (value?: string) {
+  $$.cwd = function (value?: string) {
     defaultCWD = value
     return this
   }
 
-  return shell
+  $$.test = async function (strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]) {
+    const {exitCode} = await $$(strings, ...expressions).nothrow()
+    return exitCode === 0
+  }
+
+  return $$
 }
 
 type EnvMap = Record<string, string | undefined>
 
-export type SSHShell = Shell
+export interface SSHShell {
+  (strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]): SSHShellPromise
+  test(strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]): Promise<boolean>
+
+  braces(pattern: string): string[]
+  escape(input: string): string
+  
+  env(newEnv?: Record<string, string | undefined> | NodeJS.Dict<string> | undefined): SSHShell
+  cwd(newCwd?: string): SSHShell
+  nothrow(): SSHShell
+  throws(shouldThrow: boolean): SSHShell
+}
+export type SSHShellPromise = {
+  [K in keyof Bun.$.ShellPromise]: 
+    Bun.$.ShellPromise[K] extends ((...args: infer A extends any[]) => Bun.$.ShellPromise)
+      ? ((...args: A) => SSHShellPromise)
+      : Bun.$.ShellPromise[K]
+}
 
 export interface SSHShellOptions {
   tty?: boolean
