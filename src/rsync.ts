@@ -12,4 +12,5 @@ export async function rsync($: Shell, source: string, destination: string, optio
 export interface RSyncOptions {
   delete?: boolean
   exclude?: string[]
+  transform?: (path: string, tmpdest: string) => Promise<void>
 }
