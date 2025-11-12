@@ -1,5 +1,6 @@
-export * from './Spinner'
 export * from './cleanup'
+export * from './logging'
 export * from './rsync'
 export * from './shell'
 export * from './ssh'
+export * from './tmpdir'

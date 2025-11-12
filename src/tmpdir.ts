@@ -1,5 +1,6 @@
 import * as fs from 'fs-extra'
 import { glob } from 'glob-promise'
+import * as os from 'os'
 import * as path from 'path'
 import { rsync } from 'script-util'
 
@@ -10,7 +11,7 @@ import { Shell } from './shell'
 export class TmpDir {
 
   private constructor(
-    public readonly path: string,
+    public readonly dir: string,
     private readonly options: TmpDirOptions
   ) {
     // Each tmpdir cleans up after itself when `.using()` is used, but in the case of a hard kill or interruption,
@@ -21,13 +22,13 @@ export class TmpDir {
 
   // #region Lifecycle
 
-  public static async using<T>(prefix: string, fn: (dir: TmpDir) => T | Promise<T>): Promise<T>
-  public static async using<T>(prefix: string, options: TmpDirOptions, fn: (dir: TmpDir) => T | Promise<T>): Promise<T>
-  public static async using(prefix: string, ...args: any[]) {
+  public static async using<T>(fn: (dir: TmpDir) => T | Promise<T>): Promise<T>
+  public static async using<T>(options: TmpDirOptions, fn: (dir: TmpDir) => T | Promise<T>): Promise<T>
+  public static async using(...args: any[]) {
     const fn = args.pop() as ((dir: TmpDir) => any | Promise<any>)
     const options = args.shift() ?? {} as TmpDirOptions
 
-    const dir = await this.create(prefix, options)
+    const dir = await this.create(options)
     try {
       return await fn(dir)
     } finally {
@@ -35,22 +36,22 @@ export class TmpDir {
     }
   }
 
-  public static async create(prefix: string, options: TmpDirOptions = {}) {
-    const path = await fs.mkdtemp(prefix)
-    return new TmpDir(path, options)
+  public static async create(options: TmpDirOptions = {}) {
+    const dir = await fs.mkdtemp(os.tmpdir() + '/')
+    return new TmpDir(dir, options)
   }
 
   public async dispose() {
     if (this.options.leave) { return }
     try {
-      await fs.rmdir(this.path)
+      await fs.rmdir(this.dir)
     } catch {}
   }
 
   public disposeSync() {
     if (this.options.leave) { return }
     try {
-      fs.rmdirSync(this.path)
+      fs.rmdirSync(this.dir)
     } catch {}
   }
 
@@ -58,8 +59,8 @@ export class TmpDir {
 
   // #region Paths
 
-  public fullpath(file: string) {
-    return path.join(this.path, file)
+  public path(file: string) {
+    return path.join(this.dir, file)
   }
 
   // #endregion
@@ -71,7 +72,7 @@ export class TmpDir {
     const files = await glob.glob(`${prefix}/**`)
     const promises = files.map(async source => {
       const relpath = source.slice(prefix.length)
-      const dest = path.join(this.path, relpath)
+      const dest = path.join(this.dir, relpath)
       if (options.transform != null) {
         await options.transform(source, dest)
       } else {
@@ -82,7 +83,7 @@ export class TmpDir {
   }
 
   public async rsyncTo($: Shell, dest: string, options: RSyncOptions = {}) {
-    return await rsync($, this.path, dest, options)
+    return await rsync($, this.dir, dest, options)
   }
 
   // #endgion

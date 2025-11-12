@@ -2,7 +2,7 @@ import { $ } from 'bun'
 import chalk from 'chalk'
 import { isPlainObject } from 'ytil'
 
-import { Spinner } from './Spinner'
+import { Spinner } from './logging/Spinner'
 import { createSSHShell, SSHShell, SSHShellOptions } from './ssh'
 
 export function createShell(options: ShellOptions = {}): Shell {
@@ -20,19 +20,19 @@ export function createShell(options: ShellOptions = {}): Shell {
         if ($verbose) {
           logShellCommand(parts, expressions)
           commandLogged = true
-          spinner = new Spinner()
+          spinner = new Spinner(process.stderr)
           spinner.start()
         }
         return orig_then.call(
           promise,
-          output => {
+          (output: $.ShellOutput) => {
             spinner?.stop()
             if ($verbose) {
               logShellOutput(output)
             }
             return onfulfilled != null ? onfulfilled(output) : output
           },
-          error => {
+          (error: $.ShellError) => {
             spinner?.stop()
 
             if (!commandLogged) {
@@ -41,7 +41,7 @@ export function createShell(options: ShellOptions = {}): Shell {
             }
 
             const output = error instanceof $.ShellError ? error : null
-            logShellOutput(output)
+            logShellOutput(output, -50)
             process.exit(1)
           },
         )
@@ -86,23 +86,23 @@ export type Shell = typeof $ & {
 
 function logShellCommand(parts: TemplateStringsArray, expressions: Bun.ShellExpression[]) {
   const command = buildCommand(parts, expressions)
-  process.stderr.write(chalk`  {inverse $ ${command}}`)
+  process.stderr.write(chalk`  $ ${command}`)
 }
 
-function logShellOutput(output: $.ShellOutput | null) {
+function logShellOutput(output: $.ShellOutput | null, tail?: number) {
   if (output == null) {
     process.stderr.write('\n')
     return
   }
 
   const formattedExitCode = output.exitCode === 0 ? chalk`{bgGreen  0 }` : chalk`{bgRed  ${output.exitCode} }`
-  process.stderr.write(chalk`{inverse  } ${formattedExitCode}\n`)
+  process.stderr.write(chalk` ${formattedExitCode}\n`)
 
   const stdout = output.stdout.toString('utf8').split('\n').map(it => it.trim()).filter(line => line.length > 0)
-  stdout.forEach(line => { process.stderr.write(chalk`  {dim.inverse   ${line}}\n`)})
+  stdout.slice(tail).forEach(line => { process.stderr.write(chalk`  {dim   ${line}}\n`)})
 
   const stderr = output.stderr.toString('utf8').split('\n').map(it => it.trim()).filter(line => line.length > 0)
-  stderr.forEach(line => { process.stderr.write(chalk`  {dim.inverse   {bgRed ⨉} ${line}}\n`)})
+  stderr.slice(tail).forEach(line => { process.stderr.write(chalk`  {dim   {bgRed ⨉} ${line}}\n`)})
 }
 
 function buildCommand(parts: TemplateStringsArray, expressions: Bun.ShellExpression[]) {
