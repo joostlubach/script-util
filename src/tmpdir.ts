@@ -69,12 +69,14 @@ export class TmpDir {
 
   public async copyFrom(dir: string, options: CopyFromOptions = {}) {
     const prefix = dir.replace(/\/+$/, '')
-    const files = await glob.glob(`${prefix}/**`)
+    const files = await glob.glob(`${prefix}/**`, {dot: true})
     const promises = files.map(async source => {
       const relpath = source.slice(prefix.length)
       const dest = path.join(this.dir, relpath)
+      options.callback?.(source, dest)
+
       if (options.transform != null) {
-        await options.transform(source, dest)
+        await options.transform(relpath, source, dest)
       } else {
         await fs.copy(source, dest)
       }
@@ -83,7 +85,7 @@ export class TmpDir {
   }
 
   public async rsyncTo($: Shell, dest: string, options: RSyncOptions = {}) {
-    return await rsync($, this.dir, dest, options)
+    return await rsync($, `${this.dir}/`, dest, options)
   }
 
   // #endgion
@@ -95,5 +97,6 @@ export interface TmpDirOptions {
 }
 
 export interface CopyFromOptions {
-  transform?: (source: string, destination: string) => Promise<void>
+  callback?: (source: string, destination: string) => void
+  transform?: (relpath: string, source: string, destination: string) => Promise<void>
 }
