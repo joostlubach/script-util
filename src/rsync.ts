@@ -4,7 +4,7 @@ export async function rsync($: Shell, source: string, destination: string, optio
   return $`rsync \
     -ruvaz \
     ${options.delete ? '--delete' : []} \
-    ${options.exclude?.flatMap(it => ['--exclude', it])} \
+    ${options.exclude?.flatMap(it => ['--exclude', it]) ?? []} \
     ${source} \
     ${destination}`
 }

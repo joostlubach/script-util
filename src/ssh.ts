@@ -38,22 +38,18 @@ export function createSSHShell(
 
       if (Object.keys(env).length > 0) {
         for (const [k, v] of Object.entries(env)) {
-          prefix += `export ${k}=${$.escape(String(v))} && `
+          prefix += `${k}=${$.escape(String(v))} `
         }
       }
 
       const sshFlags: string[] = []
-      const bashFlags: string[] = []
 
       if (tty) {
         sshFlags.push('-t')
       }
-      if (options?.login) {
-        bashFlags.push('-l')
-      }
       sshFlags.push(...sshArgs)
 
-      let retval = $`ssh ${sshFlags} ${remote} bash ${bashFlags} -c ${prefix + cmd}`
+      let retval = $`ssh ${sshFlags} ${remote} ${prefix + cmd}`
       if (quiet) {
         retval = retval.quiet()
       }
@@ -165,6 +161,5 @@ export type SSHShellPromise = {
 
 export interface SSHShellOptions {
   tty?: boolean
-  login?: boolean
   sshArgs?: string[]
 }

@@ -19,7 +19,7 @@ export class Bracket {
       this.capture()
     }
 
-    this.spinner = options.spinner ? spinner : undefined
+    this.spinner = options.spinner === false ? undefined : spinner
   }
 
   /** Keeps a list of buffered chunks (in the case of options.buffered == true) */
@@ -68,6 +68,17 @@ export class Bracket {
     }
   }
 
+  /**
+   * Convenience function that ensures the bracket is finalized (closed) after use.
+   */
+  public usingSync<T>(fn: (bracket: Bracket) => T): T {
+    try {
+      return fn(this)
+    } finally {
+      this.finalize()
+    }
+  }
+
   // Each tmpdir cleans up after itself when `.using()` is used, but in the case of a hard kill or interruption,
   // make sure it's cleaned up as well.
   // Note that cleanups have to be sync.
@@ -92,6 +103,14 @@ export class Bracket {
 
     const original = this.originalWrite ??= stream.write
     this.capturedWrite ??= ((chunk: Uint8Array | string, encoding?: BufferEncoding, callback?: any) => {
+
+      // If there is currently a spinner running, stop it. Temporarily release capture to prevent an
+      // infinite loop.
+      const spinnerRunning = !this.spinner?.isWriting && this.spinner?.isRunning
+      if (spinnerRunning) {
+        this.spinner.stop()
+      }
+
       // Split the text into lines, keeping the newline at the end of each line.
       let text = chunk.toString()
       const lines: string[] = []
@@ -113,6 +132,11 @@ export class Bracket {
         original.call(stream, line)
         newline = line.endsWith('\n')
       })
+
+      // Restart the spinner again if it was running.
+      if (spinnerRunning) {
+        this.spinner.start()
+      }
 
       return true
     })
@@ -142,23 +166,7 @@ export class Bracket {
       return
     }
 
-    const spinnerWasRunning = this.spinner?.isRunning
-    if (spinnerWasRunning) {
-      this.spinner?.stop()
-      this.out('\n')
-    }
-
-    const lastChunk = chunks[chunks.length - 1]
-    const lastChar = lastChunk[lastChunk.length - 1]
-    if (lastChar === '\n' && spinnerWasRunning) {
-      chunks[chunks.length - 1] = lastChunk.slice(0, -1)
-    }
-
     chunks.forEach(it => this.out(it))
-
-    if (spinnerWasRunning) {
-      this.spinner.start()
-    }
   }
 
   /**
@@ -176,24 +184,21 @@ export class Bracket {
    * @param description The task description (the line contents).
    */
   public task(description: string) {
-    this.endTask()
+    this.spinner?.stop()
+
+    this.write(chalk`{bold {cyan •} ${description}}`)
+    
     if (this.spinner != null) {
-      this.write(chalk`{bold {cyan •} ${description}}`)
       this.write(' ')
+
+      // When the spinner is stopped, it will remove the space and move to a new line.
+      this.spinner.writeOnStop('\b\x1b[P\n')
       this.spinner.start()
     } else {
-      this.line(chalk`{bold {cyan •} ${description}}`)
-    }
-  }
-
-  private endTask() {
-    const wasRunning = this.spinner?.isRunning
-    this.spinner?.stop()
-    if (wasRunning) {
+      // Write the newline now.
       this.write('\n')
     }
   }
-
 
   /**
    * Closes the bracket and releases any captured output. Make sure to call this method, or use `.using()` to
@@ -208,7 +213,7 @@ export class Bracket {
       this.chunks.forEach(it => this.out(it))
     }
 
-    this.endTask()
+    this.spinner?.stop()
     this.release()
     this.printFooter()
   }
@@ -244,9 +249,9 @@ export class Bracket {
 
   private glyph(str: string) {
     if (this.options.color != null) {
-      return chalk.hex(this.options.color)(str)
+      return chalk.hex(this.options.color).bold(str)
     } else {
-      return str
+      return chalk.bold(str)
     }
   }
 
