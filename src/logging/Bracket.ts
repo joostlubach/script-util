@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { isPromise } from 'ytil'
+import { cleanup } from 'script-util'
 
 import { Spinner } from './Spinner'
 
@@ -60,21 +60,18 @@ export class Bracket {
   /**
    * Convenience function that ensures the bracket is finalized (closed) after use.
    */
-  public using<T>(fn: (bracket: Bracket) => T): T {
+  public async using<T>(fn: (bracket: Bracket) => Promise<T>): Promise<T> {
     try {
-      const retval = fn(this)
-      if (isPromise(retval)) {
-        retval.finally(() => { this.finalize() })
-        return retval
-      } else {
-        this.finalize()
-        return retval
-      }
-    } catch (err) {
+      return await fn(this)
+    } finally {
       this.finalize()
-      throw err
     }
   }
+
+  // Each tmpdir cleans up after itself when `.using()` is used, but in the case of a hard kill or interruption,
+  // make sure it's cleaned up as well.
+  // Note that cleanups have to be sync.
+  private readonly _detachCleanup = cleanup(() => { this.finalize() })
 
   // #endregion
 
@@ -95,7 +92,6 @@ export class Bracket {
 
     const original = this.originalWrite ??= stream.write
     this.capturedWrite ??= ((chunk: Uint8Array | string, encoding?: BufferEncoding, callback?: any) => {
-
       // Split the text into lines, keeping the newline at the end of each line.
       let text = chunk.toString()
       const lines: string[] = []
@@ -117,6 +113,7 @@ export class Bracket {
         original.call(stream, line)
         newline = line.endsWith('\n')
       })
+
       return true
     })
 
@@ -142,8 +139,25 @@ export class Bracket {
   public write(...chunks: string[]) {
     if (this.options.buffered) {
       this.chunks.push(...chunks)
-    } else {
-      chunks.forEach(it => this.out(it))
+      return
+    }
+
+    const spinnerWasRunning = this.spinner?.isRunning
+    if (spinnerWasRunning) {
+      this.spinner?.stop()
+      this.out('\n')
+    }
+
+    const lastChunk = chunks[chunks.length - 1]
+    const lastChar = lastChunk[lastChunk.length - 1]
+    if (lastChar === '\n' && spinnerWasRunning) {
+      chunks[chunks.length - 1] = lastChunk.slice(0, -1)
+    }
+
+    chunks.forEach(it => this.out(it))
+
+    if (spinnerWasRunning) {
+      this.spinner.start()
     }
   }
 
@@ -186,6 +200,7 @@ export class Bracket {
    * ensure proper finalization.
    */
   public finalize() {
+    this._detachCleanup()
     if (this.options.buffered) {
       this.printHeader()
 

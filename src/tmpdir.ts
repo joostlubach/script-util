@@ -13,12 +13,7 @@ export class TmpDir {
   private constructor(
     public readonly dir: string,
     private readonly options: TmpDirOptions
-  ) {
-    // Each tmpdir cleans up after itself when `.using()` is used, but in the case of a hard kill or interruption,
-    // make sure it's cleaned up as well.
-    // Note that cleanups have to be sync.
-    cleanup(() => { this.disposeSync() })
-  }
+  ) {}
 
   // #region Lifecycle
 
@@ -41,17 +36,32 @@ export class TmpDir {
     return new TmpDir(dir, options)
   }
 
+  // Each tmpdir cleans up after itself when `.using()` is used, but in the case of a hard kill or interruption,
+  // make sure it's cleaned up as well.
+  // Note that cleanups have to be sync.
+  private readonly _detachCleanup = cleanup(() => { this.disposeSync() })
+
   public async dispose() {
-    if (this.options.leave) { return }
+    this._detachCleanup()
+
+    const {leave = process.env.TMPDIR_LEAVE === '1'} = this.options
+    if (leave) { return }
+
     try {
       await fs.rmdir(this.dir)
     } catch {}
   }
 
   public disposeSync() {
-    if (this.options.leave) { return }
+    this._detachCleanup()
+
+    const {leave = process.env.TMPDIR_LEAVE === '1'} = this.options
+    if (leave) { return }
+
     try {
-      fs.rmdirSync(this.dir)
+      fs.rmSync(this.dir, {
+        recursive: true
+      })
     } catch {}
   }
 
@@ -69,15 +79,16 @@ export class TmpDir {
 
   public async copyFrom(dir: string, options: CopyFromOptions = {}) {
     const prefix = dir.replace(/\/+$/, '')
-    const files = await glob.glob(`${prefix}/**`, {dot: true})
+    const files = await glob.glob(`${prefix}/**`, {dot: true, nodir: true})
     const promises = files.map(async source => {
-      const relpath = source.slice(prefix.length)
-      const dest = path.join(this.dir, relpath)
-      options.callback?.(source, dest)
+      const relpath = source.slice(prefix.length + 1)
 
-      if (options.transform != null) {
-        await options.transform(relpath, source, dest)
-      } else {
+      const dest = path.join(this.dir, relpath)
+      options.callback?.(relpath, source, dest)
+
+      await fs.ensureDir(path.dirname(dest))
+      const transformed = await options.transform?.(relpath, source, dest)
+      if (!transformed) {
         await fs.copy(source, dest)
       }
     })
@@ -88,7 +99,7 @@ export class TmpDir {
     return await rsync($, `${this.dir}/`, dest, options)
   }
 
-  // #endgion
+  // #endregion
 
 }
 
@@ -97,6 +108,6 @@ export interface TmpDirOptions {
 }
 
 export interface CopyFromOptions {
-  callback?: (source: string, destination: string) => void
-  transform?: (relpath: string, source: string, destination: string) => Promise<void>
+  callback?: (relpath: string, source: string, destination: string) => void
+  transform?: (relpath: string, source: string, destination: string) => Promise<true | undefined>
 }
