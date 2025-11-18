@@ -7,9 +7,10 @@ export function createSSHShell(
 ): SSHShell {
   const defaultTTY = options?.tty ?? process.stdout.isTTY
   const sshArgs = options?.sshArgs ?? []
-
+  
   let defaultEnv: EnvMap = {}
   let defaultCWD: string | undefined = undefined
+  let proxy: string | null = options?.proxy ?? null
 
   const $$ = ((strings: TemplateStringsArray, ...exprs: any[]) => {
     const parts = { strings, exprs }
@@ -46,6 +47,9 @@ export function createSSHShell(
 
       if (tty) {
         sshFlags.push('-t')
+      }
+      if (proxy) {
+        sshFlags.push('-J', proxy)
       }
       sshFlags.push(...sshArgs)
 
@@ -129,6 +133,10 @@ export function createSSHShell(
     defaultCWD = value
     return this
   }
+  $$.proxy = function (value: string | null) {
+    proxy = value
+    return this
+  }
 
   $$.test = async function (strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]) {
     const {exitCode} = await $$(strings, ...expressions).nothrow()
@@ -149,6 +157,7 @@ export interface SSHShell {
   
   env(newEnv?: Record<string, string | undefined> | NodeJS.Dict<string> | undefined): SSHShell
   cwd(newCwd?: string): SSHShell
+  proxy(value: string | null): SSHShell
   nothrow(): SSHShell
   throws(shouldThrow: boolean): SSHShell
 }
@@ -162,4 +171,5 @@ export type SSHShellPromise = {
 export interface SSHShellOptions {
   tty?: boolean
   sshArgs?: string[]
+  proxy?: string
 }
