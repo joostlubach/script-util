@@ -3,6 +3,7 @@ import { glob } from 'glob-promise'
 import * as os from 'os'
 import * as path from 'path'
 import { rsync } from 'script-util'
+import { isObject } from 'ytil'
 
 import { cleanup } from './cleanup'
 import { RSyncOptions } from './rsync'
@@ -71,6 +72,21 @@ export class TmpDir {
 
   public path(file: string) {
     return path.join(this.dir, file)
+  }
+
+  public async fileExists(file: string) {
+    const path = this.path(file)
+    
+    try {
+      const stat = await fs.stat(path)
+      return stat.isFile()
+    } catch (error) {
+      if (isObject(error) && 'code' in error && error.code === 'ENOENT') {
+        return false
+      } else {
+        throw error
+      }
+    }
   }
 
   // #endregion

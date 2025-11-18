@@ -217,7 +217,7 @@ export class Bracket {
   }
 
   private printFooter() {
-    this.out(chalk`${this.footerGlyph}/${this.header}\n`)
+    this.out(chalk`${this.footerGlyph}/\n`)
   }
 
   private get headerGlyph() {
