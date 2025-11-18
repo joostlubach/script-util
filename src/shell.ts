@@ -7,6 +7,7 @@ import { createSSHShell, SSHShell, SSHShellOptions } from './ssh'
 
 export function createShell(options: ShellOptions = {}): Shell {
   let $verbose = options.verbose ?? false
+  let upstream$ = $ as unknown as Shell
 
   const $$ = (parts: TemplateStringsArray, ...expressions: Bun.ShellExpression[]) => {
     const promise = $(parts, ...expressions).quiet()
@@ -53,30 +54,42 @@ export function createShell(options: ShellOptions = {}): Shell {
 
   $$.braces = $.braces
   $$.escape = $.escape
-  $$.env = $.env
-  $$.cwd = $.cwd
-  $$.nothrow = $.nothrow
-  $$.throws = $.throws
+  $$.env = function (...args: any[]) { upstream$ = upstream$.env(...args); return $$ }
+  $$.cwd = function (...args: any[]) { upstream$ = upstream$.cwd(...args); return $$ }
+  $$.nothrow = function () { upstream$ = upstream$.nothrow(); return $$ }
+  $$.throws = function (shouldThrow: boolean) { upstream$ = upstream$.throws(shouldThrow); return $$ }
 
   $$.verbose = ((verbose?: boolean) => {
     if (verbose != null) {
       $verbose = verbose
+      return $$
     } else {
       return $verbose
     }
   })
 
-  $$.ssh = createSSHShell.bind(null, $$ as Shell)
+  $$.ssh = createSSHShell.bind(null, $$ as unknown as Shell)
 
   $$.test = async function (strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]) {
     const {exitCode} = await $$(strings, ...expressions).nothrow()
     return exitCode === 0
   }
   
-  return $$ as Shell
+  return $$ as unknown as Shell
 }
 
-export type Shell = typeof $ & {
+export interface Shell {
+  (strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]): $.ShellPromise
+  test(strings: TemplateStringsArray, ...expressions: Bun.ShellExpression[]): Promise<boolean>
+
+  braces(pattern: string): string[]
+  escape(input: string): string
+  
+  env(newEnv?: Record<string, string | undefined> | NodeJS.Dict<string> | undefined): Shell
+  cwd(newCwd?: string): Shell
+  nothrow(): Shell
+  throws(shouldThrow: boolean): Shell
+
   verbose(verbose: boolean): void
   verbose(): boolean
 

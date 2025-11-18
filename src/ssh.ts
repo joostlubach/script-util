@@ -13,17 +13,14 @@ export function createSSHShell(
   let proxy: string | null = options?.proxy ?? null
 
   const $$ = ((strings: TemplateStringsArray, ...exprs: any[]) => {
-    const parts = { strings, exprs }
-
     let env: EnvMap = {...defaultEnv}
     let cwd: string | undefined = defaultCWD
     let tty: boolean = defaultTTY
     let quiet: boolean = false
     let shouldThrow: boolean | undefined = undefined
+    let sync: boolean = false
 
-    const run = (): Bun.$.ShellPromise => {
-      const {strings, exprs} = parts
-
+    function buildCmd() {
       let cmd = ''
       for (let i = 0; i < strings.length; i++) {
         cmd += strings[i]
@@ -32,6 +29,10 @@ export function createSSHShell(
         }
       }
 
+      return cmd
+    }
+
+    function buildPrefix() {
       let prefix = ''
       if (cwd) {
         prefix += `cd ${$.escape(cwd)} && `
@@ -43,6 +44,10 @@ export function createSSHShell(
         }
       }
 
+      return prefix
+    }
+
+    function buildSSHFlags() {
       const sshFlags: string[] = []
 
       if (tty) {
@@ -53,6 +58,14 @@ export function createSSHShell(
       }
       sshFlags.push(...sshArgs)
 
+      return sshFlags
+    }
+
+    function run(): Bun.$.ShellPromise {
+      const sshFlags = buildSSHFlags()
+      const prefix = buildPrefix()
+      const cmd = buildCmd()
+
       let retval = $`ssh ${sshFlags} ${remote} ${prefix + cmd}`
       if (quiet) {
         retval = retval.quiet()
@@ -62,6 +75,15 @@ export function createSSHShell(
       }
       
       return retval
+    }
+
+    function runSync() {
+      const sshFlags = buildSSHFlags()
+      const prefix = buildPrefix()
+      const cmd = buildCmd()
+      return Bun.spawnSync({
+        cmd: ['ssh', ...sshFlags, remote, prefix + cmd]
+      })
     }
 
     // Make result thenable / promise-like so it's awaitable and also chainable with .withEnv/.withCwd
@@ -102,6 +124,7 @@ export function createSSHShell(
       json() { return run().json() },
       arrayBuffer() { return run().arrayBuffer() },
       blob() { return run().blob() },
+      sync() { return runSync() },
 
       // Promise interface
       
@@ -166,6 +189,8 @@ export type SSHShellPromise = {
     Bun.$.ShellPromise[K] extends ((...args: infer A extends any[]) => Bun.$.ShellPromise)
       ? ((...args: A) => SSHShellPromise)
       : Bun.$.ShellPromise[K]
+} & {
+  sync: () => Bun.SyncSubprocess<"pipe", "pipe">
 }
 
 export interface SSHShellOptions {
