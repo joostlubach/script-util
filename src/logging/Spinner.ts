@@ -33,6 +33,7 @@ export class Spinner {
     if (this.timer != null) { return }
 
     this.timer = setInterval(() => {
+      if (this.timer == null) { return }
       this._writing = true
       this.stream.write(`${this.frames[this.currentFrame]}\b`)
       this._writing = false

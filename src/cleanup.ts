@@ -38,8 +38,20 @@ export function cleanupNow() {
   ROUTINES.clear()
 }
 
-process.on('SIGINT', cleanupNow)
-process.on('SIGTERM', cleanupNow)
-process.on('SIGHUP', cleanupNow)
-process.on('SIGQUIT', cleanupNow)
+process.on('SIGINT', () => {
+  cleanupNow()
+  process.exit(130) // 128 + 2 (SIGINT)
+})
+process.on('SIGTERM', () => {
+  cleanupNow()
+  process.exit(143) // 128 + 15 (SIGTERM)
+})
+process.on('SIGHUP', () => {
+  cleanupNow()
+  process.exit(129) // 128 + 1 (SIGHUP)
+})
+process.on('SIGQUIT', () => {
+  cleanupNow()
+  process.exit(131) // 128 + 3 (SIGQUIT)
+})
 process.on('exit', cleanupNow) 

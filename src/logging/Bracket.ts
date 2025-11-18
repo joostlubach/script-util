@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { cleanup } from 'script-util'
+import { range } from 'lodash'
 
 import { Spinner } from './Spinner'
 
@@ -11,21 +11,13 @@ export class Bracket {
   constructor(
     private readonly out: (line: string) => void,
     private readonly header: string,
-    spinner: Spinner | undefined,
+    private readonly taskSpinner: Spinner | undefined,
     private readonly options: BracketOptions = {}
   ) {
-    if (!options.buffered) {
-      this.printHeader()
-      this.capture()
-    }
-
-    this.spinner = options.spinner === false ? undefined : spinner
+    this.taskSpinner = options.taskSpinner === false ? undefined : taskSpinner
   }
 
-  /** Keeps a list of buffered chunks (in the case of options.buffered == true) */
-  private chunks: string[] = []
-
-  private readonly spinner: Spinner | undefined
+  private currentTask: boolean = false
 
   // #region Factory
 
@@ -61,6 +53,9 @@ export class Bracket {
    * Convenience function that ensures the bracket is finalized (closed) after use.
    */
   public async using<T>(fn: (bracket: Bracket) => Promise<T>): Promise<T> {
+    this.printHeader()
+    this.capture()
+    this.line()
     try {
       return await fn(this)
     } finally {
@@ -78,11 +73,6 @@ export class Bracket {
       this.finalize()
     }
   }
-
-  // Each tmpdir cleans up after itself when `.using()` is used, but in the case of a hard kill or interruption,
-  // make sure it's cleaned up as well.
-  // Note that cleanups have to be sync.
-  private readonly _detachCleanup = cleanup(() => { this.finalize() })
 
   // #endregion
 
@@ -102,27 +92,29 @@ export class Bracket {
     let newline: boolean = true
 
     const original = this.originalWrite ??= stream.write
-    this.capturedWrite ??= ((chunk: Uint8Array | string, encoding?: BufferEncoding, callback?: any) => {
+    this.capturedWrite ??= ((chunk: Uint8Array | string) => {
+      if (chunk instanceof Uint8Array) {
+        original.call(stream, chunk)
+        return true
+      }
 
-      // If there is currently a spinner running, stop it. Temporarily release capture to prevent an
-      // infinite loop.
-      const spinnerRunning = !this.spinner?.isWriting && this.spinner?.isRunning
+      // If there is currently a spinner running, stop it.
+      const spinnerRunning = !this.taskSpinner?.isWriting && this.taskSpinner?.isRunning
       if (spinnerRunning) {
-        this.spinner.stop()
+        this.taskSpinner.stop()
       }
 
       // Split the text into lines, keeping the newline at the end of each line.
-      let text = chunk.toString()
       const lines: string[] = []
-      while (text.length > 0) {
-        const nlpos = text.indexOf('\n')
+      while (chunk.length > 0) {
+        const nlpos = chunk.indexOf('\n')
         if (nlpos < 0) {
-          lines.push(text)
+          lines.push(chunk)
           break
         }
         
-        lines.push(text.slice(0, nlpos + 1))
-        text = text.slice(nlpos + 1)
+        lines.push(chunk.slice(0, nlpos + 1))
+        chunk = chunk.slice(nlpos + 1)
       }
 
       lines.forEach(line => {
@@ -135,7 +127,7 @@ export class Bracket {
 
       // Restart the spinner again if it was running.
       if (spinnerRunning) {
-        this.spinner.start()
+        this.taskSpinner.start()
       }
 
       return true
@@ -161,11 +153,6 @@ export class Bracket {
    * writing to the output stream directly.
    */
   public write(...chunks: string[]) {
-    if (this.options.buffered) {
-      this.chunks.push(...chunks)
-      return
-    }
-
     chunks.forEach(it => this.out(it))
   }
 
@@ -183,17 +170,23 @@ export class Bracket {
    * the next time `.task()` is called, or when `.finalize()` is called.
    * @param description The task description (the line contents).
    */
-  public task(description: string) {
-    this.spinner?.stop()
+  public task(description: string, options: TaskOptions = {}) {
+    this.taskSpinner?.stop()
 
+    if (this.currentTask) {
+      range(this.options.taskGap ?? 0).forEach(() => this.write('\n'))
+    }
+
+    this.currentTask = true
     this.write(chalk`{bold {cyan •} ${description}}`)
-    
-    if (this.spinner != null) {
+
+    const useSpinner = this.options.taskSpinner !== false && options.spinner !== false
+    if (useSpinner && this.taskSpinner != null) {
       this.write(' ')
 
       // When the spinner is stopped, it will remove the space and move to a new line.
-      this.spinner.writeOnStop('\b\x1b[P\n')
-      this.spinner.start()
+      this.taskSpinner.writeOnStop('\b\x1b[P\n')
+      this.taskSpinner.start()
     } else {
       // Write the newline now.
       this.write('\n')
@@ -205,15 +198,9 @@ export class Bracket {
    * ensure proper finalization.
    */
   public finalize() {
-    this._detachCleanup()
-    if (this.options.buffered) {
-      this.printHeader()
+    this.taskSpinner?.stop()
 
-      this.capture()
-      this.chunks.forEach(it => this.out(it))
-    }
-
-    this.spinner?.stop()
+    this.line()
     this.release()
     this.printFooter()
   }
@@ -227,11 +214,9 @@ export class Bracket {
     for (const detail of this.options.details ?? []) {
       this.line(chalk`${this.bodyGlyph}{dim ${detail}}`)
     }
-    this.line(this.bodyGlyph)
   }
 
   private printFooter() {
-    this.line(this.bodyGlyph)
     this.out(chalk`${this.footerGlyph}/${this.header}\n`)
   }
 
@@ -260,11 +245,16 @@ export class Bracket {
 }
 
 export interface BracketOptions {
-  buffered?: boolean
   details?: string[]
 
   capture?: NodeJS.WriteStream
-  spinner?: boolean
+  
+  taskSpinner?: boolean
+  taskGap?: number
 
   color?: string
+}
+
+export interface TaskOptions {
+  spinner?: boolean
 }
