@@ -29,11 +29,9 @@ export function createSSHShell(
         if (i < exprs.length) {
           const expr = exprs[i]
           if (isArray(expr)) {
-            for (const item of expr) {
-              cmd += $.escape(item) + ' '
-            }
+            cmd += expr.map(it => $.escape(it)).join(' ')
           } else {
-            cmd += $.escape(expr) + ' '
+            cmd += $.escape(expr)
           }
         }
       }
