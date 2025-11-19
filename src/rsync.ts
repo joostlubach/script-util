@@ -1,6 +1,7 @@
 import { Shell } from './shell'
+import { SSHShell } from './ssh'
 
-export async function rsync($: Shell, source: string, destination: string, options: RSyncOptions = {}) {
+export async function rsync($: Shell | SSHShell, source: string, destination: string, options: RSyncOptions = {}) {
   return $`rsync \
     -ruvaz \
     ${options.delete ? '--delete' : []} \

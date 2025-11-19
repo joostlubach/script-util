@@ -1,3 +1,5 @@
+import { isArray } from 'lodash'
+
 import { Shell } from './shell'
 
 export function createSSHShell(
@@ -25,7 +27,14 @@ export function createSSHShell(
       for (let i = 0; i < strings.length; i++) {
         cmd += strings[i]
         if (i < exprs.length) {
-          cmd += $.escape(exprs[i])
+          const expr = exprs[i]
+          if (isArray(expr)) {
+            for (const item of expr) {
+              cmd += $.escape(item) + ' '
+            }
+          } else {
+            cmd += $.escape(expr) + ' '
+          }
         }
       }
 
