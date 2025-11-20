@@ -1,7 +1,7 @@
 import { Shell } from './shell'
 import { SSHShell } from './ssh'
 
-export async function rsync($: Shell | SSHShell, source: string, destination: string, options: RSyncOptions = {}) {
+export async function rsync($: Shell | SSHShell, source: string, destination: string, options: RsyncOptions = {}) {
   return $`rsync \
     -ruvaz \
     ${options.delete ? '--delete' : []} \
@@ -11,7 +11,7 @@ export async function rsync($: Shell | SSHShell, source: string, destination: st
     ${destination}`
 }
 
-export interface RSyncOptions {
+export interface RsyncOptions {
   delete?: boolean
   exclude?: string[]
   transform?: (path: string, tmpdest: string) => Promise<void>

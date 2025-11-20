@@ -6,7 +6,7 @@ import { rsync } from 'script-util'
 import { isObject } from 'ytil'
 
 import { cleanup } from './cleanup'
-import { RSyncOptions } from './rsync'
+import { RsyncOptions } from './rsync'
 import { Shell } from './shell'
 
 export class TmpDir {
@@ -111,7 +111,7 @@ export class TmpDir {
     await Promise.all(promises)
   }
 
-  public async rsyncTo($: Shell, dest: string, options: RSyncOptions = {}) {
+  public async rsyncTo($: Shell, dest: string, options: RsyncOptions = {}) {
     return await rsync($, `${this.dir}/`, dest, options)
   }
 
