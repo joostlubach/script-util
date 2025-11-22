@@ -12,14 +12,14 @@ function cleanup(routine: () => void) {
 
 function file(path: string) {
   return cleanup(() => {
-      try {
-        fs.unlinkSync(path)
-      } catch (err) {}
+    try {
+      fs.unlinkSync(path)
+    } catch (err) {}
   })
 }
 
 Object.assign(cleanup, {
-  file
+  file,
 })
 
 const cleanup_ = cleanup as typeof cleanup & {
