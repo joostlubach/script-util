@@ -9,6 +9,7 @@ export function createSSHShell(
 ): SSHShell {
   const defaultTTY = options?.tty ?? process.stdout.isTTY
   const sshArgs = options?.sshArgs ?? []
+  const hostKeyVerification = options?.hostKeyVerification ?? false
   
   let defaultEnv: EnvMap = {}
   let defaultCWD: string | undefined = undefined
@@ -20,7 +21,6 @@ export function createSSHShell(
     let tty: boolean = defaultTTY
     let quiet: boolean = false
     let shouldThrow: boolean | undefined = undefined
-    let sync: boolean = false
 
     function buildCmd() {
       let cmd = ''
@@ -62,6 +62,10 @@ export function createSSHShell(
       }
       if (proxy) {
         sshFlags.push('-J', proxy)
+      }
+      if (!hostKeyVerification) {
+        sshFlags.push('-o', 'StrictHostKeyChecking=no')
+        sshFlags.push('-o', 'UserKnownHostsFile=/dev/null')
       }
       sshFlags.push(...sshArgs)
 
@@ -204,4 +208,5 @@ export interface SSHShellOptions {
   tty?: boolean
   sshArgs?: string[]
   proxy?: string
+  hostKeyVerification?: boolean
 }
