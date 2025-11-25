@@ -14,7 +14,9 @@ export class Bracket {
     private readonly taskSpinner: Spinner | undefined,
     private readonly options: BracketOptions = {}
   ) {
-    this.taskSpinner = options.taskSpinner === false ? undefined : taskSpinner
+    const isInteractiveTty = this.options.capture?.isTTY ?? false
+    const useTaskSpinner = options.taskSpinner !== false && isInteractiveTty
+    this.taskSpinner = useTaskSpinner ? undefined : taskSpinner
   }
 
   private currentTask: boolean = false
