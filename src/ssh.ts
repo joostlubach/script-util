@@ -130,7 +130,7 @@ export function createSSHShell(
       // Output accessors.
 
       get stdin() { return run().stdin },
-      get lines() { return run().lines },
+      lines() { return run().lines() },
       text() { return run().text() },
       json() { return run().json() },
       arrayBuffer() { return run().arrayBuffer() },
