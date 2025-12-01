@@ -13,7 +13,7 @@ export class TmpDir {
 
   private constructor(
     public readonly dir: string,
-    private readonly options: TmpDirOptions
+    private readonly options: TmpDirOptions,
   ) {}
 
   // #region Lifecycle
@@ -61,7 +61,7 @@ export class TmpDir {
 
     try {
       fs.rmSync(this.dir, {
-        recursive: true
+        recursive: true,
       })
     } catch {}
   }
