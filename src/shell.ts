@@ -1,7 +1,6 @@
 import { $ } from 'bun'
 import chalk from 'chalk'
 import { isPlainObject } from 'ytil'
-
 import { Spinner } from './logging/Spinner'
 import { createSSHShell, SSHShell, SSHShellOptions } from './ssh'
 
@@ -136,7 +135,7 @@ function buildCommand(parts: TemplateStringsArray, expressions: Bun.ShellExpress
   }
 
   for (let i = 0; i < parts.length; i++) {
-    out += parts[i].replace(/\s+/g, ' ')
+    out += parts[i]!.replace(/\s+/g, ' ')
     if (i < expressions.length) {
       const arg = fmt(expressions[i])
       if (arg != null) {
