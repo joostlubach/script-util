@@ -1,6 +1,5 @@
-import chalk from 'chalk'
+import chalk from 'chalk-template'
 import { range } from 'lodash'
-
 import { Spinner } from './Spinner'
 
 /**

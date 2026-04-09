@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'chalk-template'
 import * as fs from 'fs'
 
 const ROUTINES = new Set<() => void>()

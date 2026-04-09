@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "bun-types": "^1.2.22",
-    "chalk": "^3.0",
+    "chalk-template": "^1.1.2",
     "glob-promise": "^6.0.7",
     "lodash": "^4.17.21"
   }

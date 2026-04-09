@@ -1,5 +1,5 @@
 import { $ } from 'bun'
-import chalk from 'chalk'
+import chalk from 'chalk-template'
 import { isPlainObject } from 'ytil'
 import { Spinner } from './logging/Spinner'
 import { createSSHShell, SSHShell, SSHShellOptions } from './ssh'
