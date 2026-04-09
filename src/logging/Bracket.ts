@@ -235,9 +235,9 @@ export class Bracket {
 
   private glyph(str: string) {
     if (this.options.color != null) {
-      return chalk.hex(this.options.color).bold(str)
+      return chalk`{${this.options.color} ${str}}`
     } else {
-      return chalk.bold(str)
+      return chalk`{bold ${str}}`
     }
   }
 
