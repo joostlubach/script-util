@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.17.20",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
     "typescript": "^5.8.3"
   },
   "dependencies": {
